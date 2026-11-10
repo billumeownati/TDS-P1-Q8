@@ -6,7 +6,7 @@
 | --- | --- |
 | `model.json` | The answer you submit: 10 rows × 156 numbers |
 | `train.py` | The program that produces `model.json` |
-| `data/features.csv` | The 300 rows of numbers from the course ZIP (no photos are stored here) |
+| `data/features.csv`, `data/features-2.csv` | The numbers from the two course ZIPs, 300 rows each (no photos are stored here) |
 | `face-expression-features.py` | The course's tool for turning *your own* photos into the same 78 numbers |
 
 ---
@@ -30,7 +30,9 @@ Computers can't "look" at a face the way you do, so the course already ran each 
 - `au_AU04` — how much the eyebrows are pulled down
 - `emotion_Happy` — Py-Feat's own guess at "how happy does this look"
 
-So each photo is one row of 78 numbers, plus the label of what the person was *asked* to show. We have 30 people × 10 photos = 300 rows.
+So each photo is one row of 78 numbers, plus the label of what the person was *asked* to show.
+
+We have two downloads of 30 people each. **15 people appear in both** (identical numbers), so together they give **45 different people** × 10 photos = 450 rows. `train.py` spots the repeats and counts each person once. This matters: if the same person sat in both the training group and the test group, the test would be too easy and the accuracy would look better than it really is.
 
 ## Step 2. What must we hand in?
 
@@ -57,7 +59,7 @@ We don't write the recipes by hand. We let the computer **learn** them from the 
 1. **Compare each person with themselves.** Before training, it subtracts each person's own average from their numbers. This is free: adding the same amount to all ten of a person's photos can never change which photo wins, so the weights still work on the grader's raw numbers.
 2. **Practise the real game.** The model is trained on two questions at once: "which expression is this photo?" and "out of this person's ten photos, which one shows this expression?". The second is exactly what the grader's matching rewards.
 3. **Mirror the faces.** A face flipped left-to-right shows the same expression. Swapping every `...Left` feature with its `...Right` partner gives a second copy of each person for free, doubling the training data.
-4. **Don't let the model memorise.** With 1,560 weights and only 300 photos, the model could simply memorise these 30 people. A penalty on large weights (called *regularisation*, the `alpha` setting) forces it to keep the recipes simple, which works better on strangers.
+4. **Don't let the model memorise.** With 1,560 weights and only 450 photos, the model could simply memorise these 45 people. A penalty on large weights (called *regularisation*, the `alpha` setting) forces it to keep the recipes simple, which works better on strangers.
 
 At the end, the weights are divided by each feature's spread (the question's "divide each coefficient by `scale_`"), so they apply directly to the raw numbers the grader uses.
 
@@ -65,19 +67,20 @@ At the end, the weights are divided by each feature's spread (the question's "di
 
 The final test uses people the model has never seen, so we must test the same way. Scoring it on the people it trained on would be like marking an exam the student has already seen the answers to.
 
-`train.py` hides 5 of the 30 people, trains on the other 25, and tests on the hidden 5. It repeats this until everyone has been hidden once, then does the whole thing again with 5 different shuffles and averages. A person's ten photos always stay together, never split between training and testing.
+`train.py` hides about a sixth of the 45 people, trains on the rest, and tests on the hidden ones. It repeats this until everyone has been hidden once, then does the whole thing again with 5 different shuffles and averages. A person's ten photos always stay together, never split between training and testing.
 
-Results from this data:
+Results from this data (45 people):
 
 | Setting | Accuracy on unseen people |
 | --- | --- |
-| alpha = 1 | 61.7% |
-| **alpha = 3 (chosen)** | **64.1%** |
-| alpha = 10 | 63.5% |
+| **alpha = 1 (chosen)** | **68.2%** |
+| alpha = 3 | 67.3% |
+| alpha = 10 | 65.0% |
+| alpha = 30 | 64.1% |
 
-For comparison, the same model scores 81.3% on the people it trained on. That gap is why you never trust the training score.
+For comparison, the same model scores 87.3% on the people it trained on. That gap is why you never trust the training score.
 
-**Honest expectation:** about 64%, which on the provisional scale (0 marks at 60%, 5 at 70%, 10 at 80%) is roughly 2 of 10 bonus marks. With only 30 people the estimate can easily be a few points off either way.
+**Honest expectation:** about 68%, which on the provisional scale (0 marks at 60%, 5 at 70%, 10 at 80%) is roughly 4 of 10 bonus marks. With only 45 people the estimate can easily be a few points off either way.
 
 ## Step 6. The best way to improve: more people
 
@@ -85,15 +88,15 @@ How accuracy grows as the model sees more people:
 
 | People trained on | Accuracy on unseen people |
 | --- | --- |
-| 5 | 47.8% |
-| 10 | 56.0% |
-| 15 | 58.7% |
-| 20 | 62.6% |
-| 25 | 64.1% |
+| 5 | 50.0% |
+| 10 | 57.6% |
+| 15 | 62.6% |
+| 20 | 64.8% |
+| 37 | 68.1% |
 
-It is still climbing, so more data is the most reliable route to 70%+. Two ways to get it:
+Adding the second download proved the point: going from 30 to 45 people lifted the score from about 64% to about 68%. It is still climbing, so more data is the most reliable route to 70%+. Two ways to get it:
 
-- **Combine with classmates.** IITM accounts each get a *different* 30 people, and sharing is allowed. Just pass several CSVs to `train.py`.
+- **Combine with classmates.** IITM accounts get different subsets of people, and sharing is allowed. Just pass several CSVs to `train.py`; people you already have are dropped automatically.
 - **Photograph yourself and willing friends** making all ten faces, then:
 
   1. Name the files `sara-01.jpg` … `sara-10.jpg` and put them in a folder `photos/`.
@@ -118,13 +121,13 @@ Each person needs exactly one photo for each of the ten expressions, spelled exa
 Install [`uv`](https://docs.astral.sh/uv/getting-started/installation/) once, then:
 
 ```bash
-uv run train.py data/features.csv
+uv run train.py data/features.csv data/features-2.csv
 ```
 
 With extra data and the accuracy-versus-people table:
 
 ```bash
-uv run train.py data/features.csv more-features.csv --learning-curve
+uv run train.py data/features.csv data/features-2.csv more-features.csv --learning-curve
 ```
 
 It takes a few seconds, prints the accuracy on unseen people, and rewrites `model.json`.

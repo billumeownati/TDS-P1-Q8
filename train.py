@@ -9,6 +9,7 @@
 
 Every CSV must have the course layout: person_id, photo_id, intended_expression, then 78 features.
 Only people who have exactly one photo for each of the ten expressions are used.
+A person who appears in several CSVs (same numbers) is counted once.
 """
 import argparse
 import json
@@ -25,7 +26,7 @@ LABELS = ["neutral", "happy", "sad", "angry", "surprised", "contempt",
 
 def load(paths):
     """Return (X, feature_names). X has shape (people, 10, 78); photo k of each person shows LABELS[k]."""
-    people, names = [], None
+    people, names, seen, dupes = [], None, set(), 0
     for n, path in enumerate(paths):
         d = pd.read_csv(path, dtype={"person_id": str, "photo_id": str})
         cols = list(d.columns[3:])
@@ -37,7 +38,14 @@ def load(paths):
                 print(f"skip {path}:{person} (needs exactly one photo per expression)")
                 continue
             g = g.set_index("intended_expression").loc[LABELS]
-            people.append(g[cols].to_numpy(float))
+            x = g[cols].to_numpy(float)
+            if x.tobytes() in seen:                   # same person already loaded from another CSV
+                dupes += 1
+                continue
+            seen.add(x.tobytes())
+            people.append(x)
+    if dupes:
+        print(f"dropped {dupes} people who appear in more than one CSV")
     return np.stack(people), names
 
 
