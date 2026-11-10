@@ -6,7 +6,7 @@
 | --- | --- |
 | `model.json` | The answer you submit: 10 rows × 156 numbers |
 | `train.py` | The program that produces `model.json` |
-| `data/features.csv`, `data/features-2.csv` … `data/features-5.csv` | The numbers from the five course ZIPs, 300 rows each (no photos are stored here) |
+| `data/features.csv`, `data/features-2.csv` … `data/features-6.csv` | The numbers from the six course ZIPs, 300 rows each (no photos are stored here) |
 | `face-expression-features.py` | The course's tool for turning *your own* photos into the same 78 numbers |
 
 ---
@@ -32,7 +32,7 @@ Computers can't "look" at a face the way you do, so the course already ran each 
 
 So each photo is one row of 78 numbers, plus the label of what the person was *asked* to show.
 
-We have five downloads of 30 people each, but they overlap heavily: **87 of the 150 are repeats** of someone already seen (identical numbers), so together they give **63 different people** × 10 photos = 630 rows. `train.py` spots the repeats and counts each person once. This matters: if the same person sat in both the training group and the test group, the test would be too easy and the accuracy would look better than it really is.
+We have six downloads of 30 people each, but they overlap heavily: **115 of the 180 are repeats** of someone already seen (identical numbers), so together they give **65 different people** × 10 photos = 650 rows. `train.py` spots the repeats and counts each person once. This matters: if the same person sat in both the training group and the test group, the test would be too easy and the accuracy would look better than it really is.
 
 ## Step 2. What must we hand in?
 
@@ -59,7 +59,7 @@ We don't write the recipes by hand. We let the computer **learn** them from the 
 1. **Compare each person with themselves.** Before training, it subtracts each person's own average from their numbers. This is free: adding the same amount to all ten of a person's photos can never change which photo wins, so the weights still work on the grader's raw numbers.
 2. **Practise the real game.** The model is trained on two questions at once: "which expression is this photo?" and "out of this person's ten photos, which one shows this expression?". The second is exactly what the grader's matching rewards.
 3. **Mirror the faces.** A face flipped left-to-right shows the same expression. Swapping every `...Left` feature with its `...Right` partner gives a second copy of each person for free, doubling the training data.
-4. **Don't let the model memorise.** With 1,560 weights and only 630 photos, the model could simply memorise these 63 people. A penalty on large weights (called *regularisation*, the `alpha` setting) forces it to keep the recipes simple, which works better on strangers.
+4. **Don't let the model memorise.** With 1,560 weights and only 650 photos, the model could simply memorise these 65 people. A penalty on large weights (called *regularisation*, the `alpha` setting) forces it to keep the recipes simple, which works better on strangers.
 
 At the end, the weights are divided by each feature's spread (the question's "divide each coefficient by `scale_`"), so they apply directly to the raw numbers the grader uses.
 
@@ -67,22 +67,22 @@ At the end, the weights are divided by each feature's spread (the question's "di
 
 The final test uses people the model has never seen, so we must test the same way. Scoring it on the people it trained on would be like marking an exam the student has already seen the answers to.
 
-`train.py` hides a sixth of the 63 people, trains on the rest, and tests on the hidden ones. It repeats this until everyone has been hidden once, then does the whole thing again with 5 different shuffles and averages. A person's ten photos always stay together, never split between training and testing.
+`train.py` hides a sixth of the 65 people, trains on the rest, and tests on the hidden ones. It repeats this until everyone has been hidden once, then does the whole thing again with 5 different shuffles and averages. A person's ten photos always stay together, never split between training and testing.
 
-Results from this data (63 people):
+Results from this data (65 people):
 
 | Setting | Accuracy on unseen people |
 | --- | --- |
-| alpha = 0.6 | 68.1% |
-| alpha = 1 | 68.8% |
-| **alpha = 2 (chosen)** | **69.0%** |
-| alpha = 3 | 68.9% |
-| alpha = 5 | 68.3% |
-| alpha = 10 | 67.0% |
+| alpha = 0.6 | 67.2% |
+| alpha = 1 | 67.9% |
+| alpha = 2 | 67.8% |
+| **alpha = 3 (chosen)** | **67.9%** |
+| alpha = 5 | 67.8% |
+| alpha = 10 | 67.3% |
 
-For comparison, the same model scores 82.9% on the people it trained on. That gap is why you never trust the training score.
+For comparison, the same model scores 80.2% on the people it trained on. That gap is why you never trust the training score.
 
-**Honest expectation:** about 69–70%, which on the provisional scale (0 marks at 60%, 5 at 70%, 10 at 80%) is roughly 4–5 of 10 bonus marks. With only 63 people the estimate can easily be a couple of points off either way.
+**Honest expectation:** about 68–70%, which on the provisional scale (0 marks at 60%, 5 at 70%, 10 at 80%) is roughly 4–5 of 10 bonus marks. With only 65 people the estimate can easily be a couple of points off either way.
 
 ## Step 6. The best way to improve: more people
 
@@ -90,14 +90,16 @@ How accuracy grows as the model sees more people:
 
 | People trained on | Accuracy on unseen people |
 | --- | --- |
-| 5 | 51.0% |
-| 10 | 59.7% |
-| 15 | 61.7% |
-| 20 | 64.2% |
-| 40 | 68.3% |
-| 52 | 69.5% |
+| 5 | 50.8% |
+| 10 | 58.8% |
+| 15 | 62.3% |
+| 20 | 64.5% |
+| 40 | 67.1% |
+| 54 | 68.1% |
 
-The measured score across downloads was about 64% with 30 people, 68% with 45, 70% with 54 and 69% with 63. The last step is not the model getting worse: each time people are added, the test group changes too, and a wobble of a point or two is normal with this few people. A model trained on more people is still the safer bet. The curve is flattening though, so big gains now need a lot more people. Two ways to get them:
+The measured score across downloads was about 64% with 30 people, 68% with 45, 70% with 54, 69% with 63 and 68% with 65. The small dips at the end are not the model getting worse: each time people are added, the test group changes too, and a wobble of a point or two is normal with this few people. A model trained on more people is still the safer bet.
+
+Two things are clear, though. The curve is flattening, so big gains now need a lot more people. And the course downloads are running dry: the sixth ZIP contained only 2 people we did not already have. Two ways to get genuinely new people:
 
 - **Combine with classmates.** IITM accounts get different subsets of people, and sharing is allowed. Just pass several CSVs to `train.py`; people you already have are dropped automatically.
 - **Photograph yourself and willing friends** making all ten faces, then:
